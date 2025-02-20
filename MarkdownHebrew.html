@@ -860,7 +860,7 @@
                 </div>
                 <div class="settings-row">
                     <label for="page-margin">שוליים (מ"מ):</label>
-                    <input type="number" id="page-margin" min="0" max="50" value="20">
+                    <input type="number" id="page-margin" min="0" max="50" value="10">
                 </div>
             </div>
             
@@ -869,32 +869,32 @@
                 <h3>גדלי גופנים</h3>
                 <div class="settings-row">
                     <label for="h1-font-size">כותרת ראשית (H1):</label>
-                    <input type="number" id="h1-font-size" min="14" max="72" value="28">
+                    <input type="number" id="h1-font-size" min="14" max="72" value="20">
                     <span>px</span>
                 </div>
                 <div class="settings-row">
                     <label for="h2-font-size">כותרת משנית (H2):</label>
-                    <input type="number" id="h2-font-size" min="12" max="48" value="24">
+                    <input type="number" id="h2-font-size" min="12" max="48" value="18">
                     <span>px</span>
                 </div>
                 <div class="settings-row">
                     <label for="h3-font-size">כותרת רמה 3 (H3):</label>
-                    <input type="number" id="h3-font-size" min="12" max="36" value="20">
+                    <input type="number" id="h3-font-size" min="12" max="36" value="16">
                     <span>px</span>
                 </div>
                 <div class="settings-row">
                     <label for="h4-font-size">כותרת רמה 4 (H4):</label>
-                    <input type="number" id="h4-font-size" min="12" max="36" value="20">
+                    <input type="number" id="h4-font-size" min="12" max="36" value="14">
                     <span>px</span>
                 </div>
                 <div class="settings-row">
                     <label for="body-font-size">טקסט רגיל:</label>
-                    <input type="number" id="body-font-size" min="8" max="24" value="16">
+                    <input type="number" id="body-font-size" min="8" max="24" value="12">
                     <span>px</span>
                 </div>
                 <div class="settings-row">
                     <label for="line-height">גובה שורה:</label>
-                    <input type="number" id="line-height" min="1" max="3" step="0.1" value="1.6">
+                    <input type="number" id="line-height" min="1" max="3" step="0.1" value="1.5">
                 </div>
             </div>
             
@@ -1818,10 +1818,6 @@ window.addEventListener('load', () => {
         markdownInput.value = exampleMarkdown;
         // עדכון התצוגה המקדימה
         updatePreview();
-        // הצגת הודעה קצרה למשתמש (אופציונלי)
-        setTimeout(() => {
-            showModal('ברוכים הבאים לעורך Markdown בעברית! תוכן לדוגמה נטען אוטומטית.');
-        }, 1000);
     }
 });
       // ===== טיפול בהעלאת קבצים =====
