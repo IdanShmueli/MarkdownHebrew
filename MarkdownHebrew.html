@@ -802,7 +802,7 @@
         </div>
         <div class="toolbar-group">
             <button id="print-settings-btn">הגדרות שמירה</button>
-            <button id="print-btn">הדפסה/הדפס ל-PDF</button>
+            <button id="print-btn"></button>
         </div>
     </div>
 
@@ -935,10 +935,6 @@
                     <label for="rtl-print">כיוון הדפסה מימין לשמאל:</label>
                     <input type="checkbox" id="rtl-print" checked>
                 </div>
-                <div class="settings-row">
-                    <label for="table-header-bg">רקע לכותרות טבלה:</label>
-                    <input type="color" id="table-header-bg" value="#f2f2f2">
-                </div>
             </div>                
 
             <!-- הגדרות צבע -->
@@ -956,6 +952,10 @@
         <div class="color-setting-item">
             <label for="heading-color">צבע כותרות:</label>
             <input type="color" id="heading-color" value="#3c5a8c">
+        </div>
+        <div class="color-setting-item">
+          <label for="table-header-bg">רקע לכותרות טבלה:</label>
+          <input type="color" id="table-header-bg" value="#f2f2f2">
         </div>
         <div class="color-setting-item">
             <label for="link-color">צבע קישורים:</label>
@@ -1504,36 +1504,132 @@ function applyPrintSettings(printImmediately = false) {
         /**
          * מבצע הדפסה של המסמך לאחר יישום ההגדרות
          */
-         function printDocument() {
+
+        /**
+ * מתקן את פונקציית ההדפסה כדי שתעבוד כראוי
+ * יש להחליף את פונקציית printDocument המקורית בקוד זה
+ */
+function printDocument() {
     // הסתרת חלון ההגדרות אם פתוח
     printSettingsModal.style.display = 'none';
     
-    // שמירת המצב הנוכחי של העורך
+    // שמירת המצב הנוכחי של העורך והתצוגה
     const editorWasVisible = editorPane.classList.contains('visible');
     const originalEditorDisplay = editorPane.style.display;
     const originalPreviewMaxWidth = previewPane.style.maxWidth;
     const originalToolbarDisplay = document.querySelector('.toolbar').style.display;
     
-    // הסתרת אלמנטים שלא צריכים להודפס
+    // יצירת סגנון זמני שידרוס את כללי ההסתרה של @media print
+    const tempPrintStyle = document.createElement('style');
+    tempPrintStyle.id = 'temp-print-fix';
+    tempPrintStyle.textContent = `
+        @media print {
+            /* אפשור הצגת התוכן בהדפסה */
+            .preview-pane {
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+                max-width: 100% !important;
+            }
+            
+            #preview-container {
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                min-height: auto !important;
+                width: 100% !important;
+                max-width: none !important;
+                padding: 0 !important;
+                margin: 0 auto !important;
+                box-shadow: none !important;
+                overflow: visible !important;
+            }
+            
+            /* הסתרת אלמנטי ממשק */
+            .toolbar, 
+            .editor-pane,
+            .dropdown,
+            .modal,
+            .print-settings-modal,
+            #copy-helper-btn,
+            #pdf-copy-help-btn,
+            #quick-copy-modal,
+            #export-btn,
+            #examples-btn,
+            #enhanced-export-btn {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                height: 0 !important;
+                width: 0 !important;
+                overflow: hidden !important;
+                position: absolute !important;
+                z-index: -9999 !important;
+            }
+            
+            /* התאמות כלליות */
+            body {
+                background-color: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+            }
+            
+            .container {
+                display: block !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+                margin-top: 0 !important;
+                overflow: visible !important;
+            }
+            
+            /* וידוא שהתוכן יוצג בצורה מלאה */
+            .markdown-body {
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                break-inside: auto !important;
+                page-break-inside: auto !important;
+            }
+        }
+    `;
+    document.head.appendChild(tempPrintStyle);
+    
+    // הסתרת אלמנטים שלא צריכים להודפס באמצעות inline styles
     document.querySelector('.toolbar').style.display = 'none';
     if (editorWasVisible) {
         editorPane.classList.remove('visible');
         editorPane.style.display = 'none';
-        previewPane.style.maxWidth = '100%';
     }
+    
+    // התאמת התצוגה המקדימה למסך מלא
+    previewPane.style.maxWidth = '100%';
+    previewPane.style.width = '100%';
+    previewPane.style.padding = '0';
+    previewPane.style.margin = '0';
     
     // הוספת class להתאמה להדפסה
     document.body.classList.add('printing');
     
-    // הוספת class להתאמה להדפסה
-document.body.classList.add('printing');
-
-    // הפעלת הדפסה של הדפדפן
+    // הדפסה עם השהיה קצרה כדי לאפשר לשינויי הסגנון להיטען
     setTimeout(() => {
+        // החלת הגדרות צבע נוכחיות
+        applyLiveColorSettings();
+        
+        // הדפסה
         window.print();
         
-        // החזרת המצב הקודם לאחר שהדפדפן חוזר ממסך ההדפסה
+        // החזרת המצב הקודם לאחר ההדפסה
         setTimeout(() => {
+            // הסרת סגנון ההדפסה הזמני
+            if (document.getElementById('temp-print-fix')) {
+                document.getElementById('temp-print-fix').remove();
+            }
+            
             // החזרת המצב המקורי
             document.body.classList.remove('printing');
             document.querySelector('.toolbar').style.display = originalToolbarDisplay;
@@ -1543,11 +1639,11 @@ document.body.classList.add('printing');
                 editorPane.style.display = originalEditorDisplay;
                 previewPane.style.maxWidth = originalPreviewMaxWidth;
             }
-        }, 100);
+        }, 500);
     }, 300);
 }
-        
-        /**
+
+         /**
              * שומר את הגדרות הצבע באחסון מקומי
              */
             function saveColorSettings() {
@@ -4042,7 +4138,7 @@ function handleHtmlExport() {
     ${htmlContent}
   </div>
   <footer style="margin-top: 2em; border-top: 1px solid #eee; padding-top: 1em; font-size: 0.9em; color: #777;">
-    <p>מסמך זה נוצר באמצעות עורך Markdown בעברית</p>
+    <p>מסמך זה נוצר באמצעות Idanshmueli.com/markdown</p>
   </footer>
 </body>
 </html>`;
@@ -5451,5 +5547,701 @@ document.addEventListener('DOMContentLoaded', function() {
 
 })(); // End of self-executing function
 });</script>
+<script>
+  /**
+   * קוד מינימלי לעדכון סרגל הכלים
+   * מסיר את כפתור ההדפסה ומוסיף כפתור ייצוא בסיסי
+   */
+  (function() {
+    'use strict';
+    
+    // פונקציה שרצה מיד ואז שוב כאשר המסמך טעון במלואו
+    function updateToolbar() {
+      console.log('מתחיל עדכון בסיסי של סרגל הכלים...');
+      
+      // ====== 1. מוצא את כפתור ההדפסה ומסיר אותו לחלוטין ======
+      const printBtn = document.getElementById('print-btn');
+      if (printBtn && printBtn.parentNode) {
+        console.log('מסיר את כפתור ההדפסה...');
+        printBtn.parentNode.removeChild(printBtn);
+      } else {
+        console.log('כפתור ההדפסה לא נמצא, אולי כבר הוסר');
+      }
+      
+      // ====== 2. בודק אם כבר יש כפתור ייצוא ======
+      if (document.getElementById('export-btn')) {
+        console.log('כפתור ייצוא כבר קיים');
+        return;
+      }
+      
+      // ====== 3. מוצא את קבוצת הכפתורים הימנית ======
+      const rightToolbarGroup = document.querySelector('.toolbar .toolbar-group:last-child');
+      if (!rightToolbarGroup) {
+        console.log('קבוצת הכפתורים הימנית לא נמצאה');
+        return;
+      }
+      
+      // ====== 4. יוצר כפתור ייצוא בסיסי ======
+      // ====== 5. מוסיף את כפתור הייצוא לסרגל ======
+      rightToolbarGroup.appendChild(exportBtn);
+      
+      // ====== 6. מוסיף פעולה בסיסית לכפתור הייצוא ======
+      exportBtn.addEventListener('click', function() {
+        // אפשרות יצוא בסיסית - שמירה כטקסט
+        const markdownInput = document.getElementById('markdown-input');
+        if (!markdownInput) {
+          alert('לא ניתן למצוא את תוכן הטקסט');
+          return;
+        }
+        
+        // הכנת הטקסט
+        const content = markdownInput.value;
+        
+        // יצירת קובץ להורדה
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        
+        // יצירת קישור להורדה והקלקה עליו
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'document.txt';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        
+        // ניקוי
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 100);
+      });
+      
+      console.log('סרגל הכלים עודכן בהצלחה');
+    }
+    
+    // הפעלה ראשונית מיידית
+    updateToolbar();
+    
+    // הפעלה שנייה לאחר טעינת הדף
+    document.addEventListener('DOMContentLoaded', updateToolbar);
+    
+    // מוסיף פעולה אוטומטית שנועדה לטפל במקרה שהמסמך נעלם ומוצג שוב
+    setInterval(updateToolbar, 1000);
+  })();
+  </script>
+  <script>/**
+    * סקריפט להסרת כפתור "החל והדפס" מחלון הגדרות ההדפסה
+    * הסקריפט סורק ומחפש את הכפתור בעת טעינת הדף ובאופן תקופתי
+    */
+   (function() {
+     'use strict';
+     
+     /**
+      * פונקציה ראשית להסרת כפתור "החל והדפס" מחלון הגדרות ההדפסה
+      * הפונקציה מחפשת את הכפתור לפי ה-ID שלו ומסירה אותו
+      */
+     function removePrintButton() {
+       // מחפש את כפתור "החל והדפס" לפי ה-ID
+       const applyPrintButton = document.getElementById('apply-print-settings');
+       
+       // בודק אם הכפתור קיים ויש לו אלמנט הורה
+       if (applyPrintButton && applyPrintButton.parentNode) {
+         console.log('מסיר את כפתור "החל והדפס"...');
+         applyPrintButton.parentNode.removeChild(applyPrintButton);
+       }
+     }
+     
+     /**
+      * פונקציה שמחפשת ומסירה את הכפתור באופן מתמשך
+      * נועדה להתמודד עם מצבים שבהם הכפתור נוצר מחדש או מופיע לאחר טעינת הדף
+      */
+     function continuouslyRemovePrintButton() {
+       // מסיר את הכפתור אם הוא קיים
+       removePrintButton();
+       
+       // בודק אם חלון הגדרות ההדפסה פתוח
+       const printSettingsModal = document.getElementById('print-settings-modal');
+       if (printSettingsModal && 
+           window.getComputedStyle(printSettingsModal).display !== 'none') {
+         console.log('חלון הגדרות ההדפסה פתוח, בודק הימצאות כפתור...');
+         removePrintButton();
+       }
+     }
+     
+     /**
+      * מוסיף מאזין אירועים לפתיחת חלון הגדרות ההדפסה
+      * מסיר את הכפתור מיד לאחר פתיחת החלון
+      */
+     function addModalOpenListener() {
+       // מחפש את כפתור הפתיחה של חלון הגדרות ההדפסה
+       const printSettingsBtn = document.getElementById('print-settings-btn');
+       
+       if (printSettingsBtn) {
+         printSettingsBtn.addEventListener('click', function() {
+           console.log('חלון הגדרות נפתח, מסיר כפתור הדפסה...');
+           
+           // מחכה קצת כדי לוודא שהחלון נפתח והכפתור הוכנס לDOM
+           setTimeout(removePrintButton, 100);
+         });
+       }
+     }
+     
+     /**
+      * מאזין למוטציות ב-DOM כדי לזהות מתי חלון ההגדרות נפתח
+      * או מתי הכפתור נוסף חזרה ל-DOM
+      */
+     function setupMutationObserver() {
+       // בודק אם API של MutationObserver זמין
+       if (window.MutationObserver) {
+         const observer = new MutationObserver(function(mutations) {
+           mutations.forEach(function(mutation) {
+             // בודק אם נוספו אלמנטים חדשים
+             if (mutation.addedNodes.length) {
+               // בודק אם אחד האלמנטים שנוספו הוא כפתור "החל והדפס"
+               // או שמא נפתח חלון הגדרות ההדפסה
+               for (let i = 0; i < mutation.addedNodes.length; i++) {
+                 const node = mutation.addedNodes[i];
+                 if (node.id === 'apply-print-settings' || 
+                     (node.querySelector && node.querySelector('#apply-print-settings'))) {
+                   console.log('זוהה כפתור "החל והדפס" חדש, מסיר אותו...');
+                   removePrintButton();
+                 }
+               }
+             }
+           });
+         });
+         
+         // מאזין לשינויים בכל המסמך
+         observer.observe(document.body, {
+           childList: true,
+           subtree: true
+         });
+         
+         console.log('מאזין למוטציות DOM הופעל בהצלחה');
+       }
+     }
+     
+     /**
+      * פונקציית אתחול ראשית - מפעילה את כל מנגנוני ההסרה
+      */
+     function initialize() {
+       console.log('מאתחל את סקריפט הסרת כפתור "החל והדפס"...');
+       
+       // הסרה ראשונית
+       removePrintButton();
+       
+       // הוספת מאזין לפתיחת חלון ההגדרות
+       addModalOpenListener();
+       
+       // הפעלת מאזין למוטציות DOM
+       setupMutationObserver();
+       
+       // הפעלת בדיקה תקופתית להסרת הכפתור
+       // (למקרה שהשיטות האחרות לא הצליחו)
+       setInterval(continuouslyRemovePrintButton, 500);
+       
+       console.log('אתחול סקריפט הסרת כפתור "החל והדפס" הושלם בהצלחה');
+     }
+     
+     // הפעלה ראשונית מיידית
+     initialize();
+     
+     // הפעלה נוספת בטעינת המסמך למקרה שהסקריפט נטען לפני ה-DOM
+     if (document.readyState === 'loading') {
+       document.addEventListener('DOMContentLoaded', initialize);
+     }
+   })();</script>
+<script>/**
+  * סקריפט מינימלי ובטוח לתיקון צבעי רקע בכותרות טבלאות
+  * גרסה קלת משקל המתמקדת רק בפתרון הבעיה ללא התערבות מסוכנת
+  */
+ (function() {
+   'use strict';
+   
+   // קבוע המגדיר את זמן ההשהיה בין ניסיונות חוזרים (במילישניות)
+   const RETRY_DELAY = 500;
+   
+   /**
+    * פונקציה לתיקון סגנונות כותרות טבלאות באמצעות CSS בלבד
+    * שיטה זו בטוחה יותר מאשר שינוי ישיר של אלמנטים ב-DOM
+    */
+   function fixTableHeadersWithCSS() {
+     // מאתר אם כבר קיים סגנון שלנו במסמך
+     let styleElement = document.getElementById('table-header-fix-style');
+     
+     // אם לא קיים, יוצר אלמנט סגנון חדש
+     if (!styleElement) {
+       styleElement = document.createElement('style');
+       styleElement.id = 'table-header-fix-style';
+       document.head.appendChild(styleElement);
+     }
+     
+     // תוכן הסגנון - כלל CSS בסיסי שמתגבר על סגנונות מוטמעים
+     styleElement.textContent = `
+       /* פתרון לצבע רקע בכותרות טבלאות */
+       th {
+         background-color: var(--table-header-bg, #f2f2f2) !important;
+       }
+     `;
+     
+     return true;
+   }
+   
+   /**
+    * פונקציה לניסיון תיקון בטוח, עם מנגנון ניסיונות חוזרים אם הדף לא טעון עדיין
+    */
+   function safelyApplyFix() {
+     try {
+       // בדיקה האם המסמך מוכן
+       if (document.readyState !== 'complete' && document.readyState !== 'interactive') {
+         // המסמך עדיין לא מוכן, ננסה שוב מאוחר יותר
+         setTimeout(safelyApplyFix, RETRY_DELAY);
+         return;
+       }
+       
+       // החלת התיקון
+       const success = fixTableHeadersWithCSS();
+       
+       // ניטור מתמשך של התצוגה באופן בטוח
+       if (success) {
+         // מוסיף ניטור שינויים במשתני CSS
+         setupCSSVariableMonitoring();
+       }
+     } catch (err) {
+       // לוגר שגיאות בטוח שלא יגרום לקריסה
+       console.warn('שגיאה בניסיון לתקן כותרות טבלה:', err);
+     }
+   }
+   
+   /**
+    * מקשר בין בקרי הצבע לבין משתנה CSS
+    */
+   function setupCSSVariableMonitoring() {
+     try {
+       // מאתר את בקר הצבע של כותרות טבלאות
+       const tableHeaderBg = document.getElementById('table-header-bg');
+       
+       if (tableHeaderBg) {
+         // עדכון ראשוני של משתנה CSS
+         document.documentElement.style.setProperty('--table-header-bg', tableHeaderBg.value);
+         
+         // מאזין לשינויים בבקר הצבע
+         tableHeaderBg.addEventListener('input', function() {
+           document.documentElement.style.setProperty('--table-header-bg', this.value);
+         });
+         
+         // מאזין לשינויים סופיים בבקר הצבע
+         tableHeaderBg.addEventListener('change', function() {
+           document.documentElement.style.setProperty('--table-header-bg', this.value);
+         });
+       }
+     } catch (err) {
+       console.warn('שגיאה בהגדרת ניטור משתני CSS:', err);
+     }
+   }
+   
+   // הפעלה ראשונית של הפתרון
+   safelyApplyFix();
+ })();</script>
+ <!-- Google Site Enhancement Script for SEO and Redirects -->
+<script>
+  /**
+   * Google Sites SEO and Redirect Fixer
+   * מתקן בעיות אינדוקס ו-SEO לאתרי Google Sites מותאמים אישית
+   * v1.0.0
+   */
+  (function() {
+    'use strict';
+  
+    // ===== קונפיגורציה ======
+    const CONFIG = {
+      // הגדרות אתר
+      primaryDomain: 'idanshmueli.com',        // הדומיין המועדף (ללא www)
+      title: 'Idan Shmueli | Law & Technology', // כותרת האתר לשימוש במטא תגים
+      description: 'Law student | University of Haifa, Law, Technology & Cyber Clinic. Exploring intersections between legal frameworks and artificial intelligence while examining technology\'s impact on contemporary legal practice.',
+      keywords: 'law, technology, cyber, legal tech, Idan Shmueli, Hebrew Markdown, legal frameworks',
+      author: 'Idan Shmueli',
+      image: 'https://lh3.googleusercontent.com/pw/AP1GczNvWa6BLOk01aw8MiiZ6ZsRQlwV-d4zhb-mpRtCXefZ8clb04yCMDho_i2okdguPV0JTbJu2O-h4jPmOEaoYkwVVjK5LF6LzkkwgrRaUW7WI7Ws5KxS=w2400',
+      
+      // הגדרות מתקדמות
+      fixRedirects: true,           // תיקון הפניות בקישורים
+      addCanonicals: true,          // הוספת canonical tags
+      addSchemaMarkup: true,        // הוספת Schema.org markup
+      addSocialMeta: true,          // הוספת תגיות מטא לרשתות חברתיות
+      improveInternalLinks: true,   // שיפור קישורים פנימיים
+      fixWwwLinks: true,            // תיקון קישורים עם www
+      
+      // קישורים פנימיים ידועים שצריך לתקן
+      knownInternalPages: {
+        '/markdown': true
+      },
+      
+      // הוספת לוגים להתראות על פעולת הסקריפט
+      debug: true
+    };
+  
+    /**
+     * לוגר ייעודי עם שליטה על רמת הלוגים
+     */
+    const Logger = {
+      log: function(message) {
+        if (CONFIG.debug) {
+          console.log(`[Site Enhancer] ${message}`);
+        }
+      },
+      
+      warn: function(message) {
+        if (CONFIG.debug) {
+          console.warn(`[Site Enhancer] ${message}`);
+        }
+      },
+      
+      error: function(message, error) {
+        console.error(`[Site Enhancer] ${message}`, error || '');
+      }
+    };
+    
+    /**
+     * הוספת canonical tag לראש הדף
+     */
+    function addCanonicalTag() {
+      try {
+        // בדוק אם כבר יש canonical
+        const existingCanonical = document.querySelector('link[rel="canonical"]');
+        if (existingCanonical) {
+          Logger.log('נמצא canonical קיים, בודק אם צריך לעדכן');
+          
+          // בדוק אם צריך לעדכן את ה-canonical הקיים
+          const currentPath = window.location.pathname;
+          const expectedCanonical = `https://${CONFIG.primaryDomain}${currentPath}`;
+          
+          if (existingCanonical.href !== expectedCanonical) {
+            existingCanonical.href = expectedCanonical;
+            Logger.log(`עודכן canonical ל: ${expectedCanonical}`);
+          }
+          
+          return;
+        }
+        
+        // יצירת canonical חדש
+        const canonicalLink = document.createElement('link');
+        canonicalLink.rel = 'canonical';
+        canonicalLink.href = `https://${CONFIG.primaryDomain}${window.location.pathname}`;
+        document.head.appendChild(canonicalLink);
+        
+        Logger.log(`נוסף canonical: ${canonicalLink.href}`);
+      } catch (error) {
+        Logger.error('שגיאה בהוספת canonical tag', error);
+      }
+    }
+    
+    /**
+     * הוספת מטא תגים בסיסיים לשיפור SEO
+     */
+    function addBasicMetaTags() {
+      try {
+        const metaTags = [
+          { name: 'description', content: CONFIG.description },
+          { name: 'keywords', content: CONFIG.keywords },
+          { name: 'author', content: CONFIG.author },
+          { name: 'robots', content: 'index, follow' }
+        ];
+        
+        metaTags.forEach(tag => {
+          // בדוק אם התג כבר קיים
+          let existingTag = document.querySelector(`meta[name="${tag.name}"]`);
+          
+          if (existingTag) {
+            // עדכן את התג הקיים
+            existingTag.content = tag.content;
+            Logger.log(`עודכן meta tag קיים: ${tag.name}`);
+          } else {
+            // צור תג חדש
+            const metaTag = document.createElement('meta');
+            metaTag.name = tag.name;
+            metaTag.content = tag.content;
+            document.head.appendChild(metaTag);
+            Logger.log(`נוסף meta tag: ${tag.name}`);
+          }
+        });
+      } catch (error) {
+        Logger.error('שגיאה בהוספת meta tags בסיסיים', error);
+      }
+    }
+    
+    /**
+     * הוספת מטא תגים לרשתות חברתיות (Open Graph ו-Twitter Cards)
+     */
+    function addSocialMetaTags() {
+      try {
+        const url = `https://${CONFIG.primaryDomain}${window.location.pathname}`;
+        
+        const metaTags = [
+          // Open Graph
+          { property: 'og:title', content: CONFIG.title },
+          { property: 'og:description', content: CONFIG.description },
+          { property: 'og:url', content: url },
+          { property: 'og:image', content: CONFIG.image },
+          { property: 'og:type', content: 'website' },
+          { property: 'og:site_name', content: CONFIG.title },
+          
+          // Twitter Cards
+          { name: 'twitter:card', content: 'summary_large_image' },
+          { name: 'twitter:title', content: CONFIG.title },
+          { name: 'twitter:description', content: CONFIG.description },
+          { name: 'twitter:image', content: CONFIG.image }
+        ];
+        
+        metaTags.forEach(tag => {
+          // בדוק אם יש כבר את התג הספציפי הזה
+          const selector = tag.property ? 
+            `meta[property="${tag.property}"]` : 
+            `meta[name="${tag.name}"]`;
+            
+          let existingTag = document.querySelector(selector);
+          
+          if (existingTag) {
+            // עדכן את התג הקיים
+            existingTag.content = tag.content;
+            Logger.log(`עודכן social meta tag קיים: ${tag.property || tag.name}`);
+          } else {
+            // צור תג חדש
+            const metaTag = document.createElement('meta');
+            
+            if (tag.property) {
+              metaTag.setAttribute('property', tag.property);
+            } else {
+              metaTag.setAttribute('name', tag.name);
+            }
+            
+            metaTag.content = tag.content;
+            document.head.appendChild(metaTag);
+            Logger.log(`נוסף social meta tag: ${tag.property || tag.name}`);
+          }
+        });
+      } catch (error) {
+        Logger.error('שגיאה בהוספת social meta tags', error);
+      }
+    }
+    
+    /**
+     * הוסף Schema.org markup לשיפור Rich Snippets
+     */
+    function addSchemaMarkup() {
+      try {
+        // בדוק אם יש כבר schema markup
+        if (document.querySelector('script[type="application/ld+json"]')) {
+          Logger.log('כבר קיים Schema.org markup, מדלג');
+          return;
+        }
+        
+        // יצירת Schema.org markup עבור אדם
+        const schema = {
+          "@context": "https://schema.org",
+          "@type": "Person",
+          "name": CONFIG.author,
+          "url": `https://${CONFIG.primaryDomain}`,
+          "image": CONFIG.image,
+          "jobTitle": "Law Student",
+          "description": CONFIG.description,
+          "sameAs": [
+            "https://www.linkedin.com/in/ishmueli",
+            "https://github.com/idanshmueli",
+            `https://${CONFIG.primaryDomain}/markdown`
+          ],
+          "knowsAbout": ["Law", "Technology", "Cyber", "Artificial Intelligence", "Legal Frameworks"]
+        };
+        
+        // יצירת אלמנט script עם ה-schema
+        const scriptTag = document.createElement('script');
+        scriptTag.type = 'application/ld+json';
+        scriptTag.textContent = JSON.stringify(schema, null, 2);
+        document.head.appendChild(scriptTag);
+        
+        Logger.log('נוסף Schema.org markup');
+      } catch (error) {
+        Logger.error('שגיאה בהוספת Schema.org markup', error);
+      }
+    }
+    
+    /**
+     * מתקן הפניות בקישורים (מwww לללא www)
+     */
+    function fixRedirectLinks() {
+      try {
+        const links = document.querySelectorAll('a[href*="idanshmueli.com"]');
+        let fixedCount = 0;
+        
+        links.forEach(link => {
+          const href = link.getAttribute('href');
+          
+          // תיקון URLs עם www לגרסה ללא www
+          if (href && href.includes('www.idanshmueli.com')) {
+            const newHref = href.replace('www.idanshmueli.com', CONFIG.primaryDomain);
+            link.setAttribute('href', newHref);
+            fixedCount++;
+            
+            Logger.log(`תוקן קישור: ${href} -> ${newHref}`);
+          }
+        });
+        
+        if (fixedCount > 0) {
+          Logger.log(`תוקנו ${fixedCount} קישורים`);
+        } else {
+          Logger.log('לא נמצאו קישורים לתיקון');
+        }
+      } catch (error) {
+        Logger.error('שגיאה בתיקון קישורים', error);
+      }
+    }
+    
+    /**
+     * שיפור קישורים פנימיים
+     */
+    function improveInternalLinks() {
+      try {
+        const internalPages = Object.keys(CONFIG.knownInternalPages);
+        const allLinks = document.querySelectorAll('a');
+        let updatedCount = 0;
+        
+        allLinks.forEach(link => {
+          const href = link.getAttribute('href');
+          if (!href) return;
+          
+          // בדוק אם יש להתאים את הקישור
+          for (const page of internalPages) {
+            if (href.includes(`www.${CONFIG.primaryDomain}${page}`) || 
+                href.includes(`${CONFIG.primaryDomain}${page}`)) {
+              
+              // וודא שזה בפורמט הנכון
+              const newHref = `https://${CONFIG.primaryDomain}${page}`;
+              if (href !== newHref) {
+                link.setAttribute('href', newHref);
+                updatedCount++;
+                Logger.log(`שודרג קישור פנימי: ${href} -> ${newHref}`);
+              }
+            }
+          }
+        });
+        
+        if (updatedCount > 0) {
+          Logger.log(`שודרגו ${updatedCount} קישורים פנימיים`);
+        } else {
+          Logger.log('לא נמצאו קישורים פנימיים לשדרוג');
+        }
+      } catch (error) {
+        Logger.error('שגיאה בשיפור קישורים פנימיים', error);
+      }
+    }
+    
+    /**
+     * מוסיף rel="nofollow" לכל הקישורים החיצוניים
+     */
+    function addNoFollowToExternalLinks() {
+      try {
+        const links = document.querySelectorAll('a');
+        let updatedCount = 0;
+        
+        links.forEach(link => {
+          const href = link.getAttribute('href');
+          if (!href) return;
+          
+          // בדוק אם זה קישור חיצוני
+          if (href.startsWith('http') && 
+              !href.includes(CONFIG.primaryDomain) && 
+              !link.rel.includes('nofollow')) {
+            
+            // הוסף nofollow רק אם אין כבר
+            const relAttr = link.getAttribute('rel') || '';
+            if (!relAttr.includes('nofollow')) {
+              const newRel = relAttr ? `${relAttr} nofollow` : 'nofollow';
+              link.setAttribute('rel', newRel);
+              updatedCount++;
+              Logger.log(`נוסף nofollow לקישור חיצוני: ${href}`);
+            }
+          }
+        });
+        
+        if (updatedCount > 0) {
+          Logger.log(`נוסף nofollow ל-${updatedCount} קישורים חיצוניים`);
+        } else {
+          Logger.log('לא נמצאו קישורים חיצוניים ללא nofollow');
+        }
+      } catch (error) {
+        Logger.error('שגיאה בהוספת nofollow לקישורים חיצוניים', error);
+      }
+    }
+    
+    /**
+     * פונקציית אתחול ראשית שמפעילה את כל השיפורים
+     */
+    function initialize() {
+      Logger.log('מתחיל אתחול שיפורי SEO...');
+      
+      try {
+        // הוספת canonical tag
+        if (CONFIG.addCanonicals) {
+          addCanonicalTag();
+        }
+        
+        // הוספת מטא תגים בסיסיים
+        addBasicMetaTags();
+        
+        // הוספת מטא תגים לרשתות חברתיות
+        if (CONFIG.addSocialMeta) {
+          addSocialMetaTags();
+        }
+        
+        // הוספת Schema.org markup
+        if (CONFIG.addSchemaMarkup) {
+          addSchemaMarkup();
+        }
+        
+        // תיקון הפניות בקישורים
+        if (CONFIG.fixRedirects) {
+          fixRedirectLinks();
+        }
+        
+        // שיפור קישורים פנימיים
+        if (CONFIG.improveInternalLinks) {
+          improveInternalLinks();
+        }
+        
+        // הוספת nofollow לקישורים חיצוניים
+        addNoFollowToExternalLinks();
+        
+        Logger.log('סיום אתחול בהצלחה!');
+      } catch (error) {
+        Logger.error('שגיאה כללית באתחול', error);
+      }
+    }
+    
+    /**
+     * בדיקה האם ה-DOM מוכן ואז מפעיל את האתחול
+     */
+    function onDOMReady(callback) {
+      if (document.readyState === 'interactive' || document.readyState === 'complete') {
+        setTimeout(callback, 0);
+      } else {
+        document.addEventListener('DOMContentLoaded', callback);
+      }
+    }
+    
+    // הפעל את הסקריפט כאשר ה-DOM מוכן
+    onDOMReady(initialize);
+    
+    // הפעל גם אחרי שהדף טעון לחלוטין (למקרה שיש תוכן שנטען דינמית)
+    window.addEventListener('load', function() {
+      setTimeout(initialize, 500);
+    });
+    
+    // ייצוא פונקציות שימושיות לחלון הגלובלי
+    window.SiteEnhancer = {
+      reinitialize: initialize,
+      fixLinks: fixRedirectLinks,
+      addSchema: addSchemaMarkup
+    };
+  })();
+  </script>
 </body>
 </html>
